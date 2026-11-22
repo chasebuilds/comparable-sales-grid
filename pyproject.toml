@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "comparable-sales-grid"
+version = "0.1.0"
+description = "The sales comparison approach as a tool: comp search, data-derived adjustments, reconciliation. Analysis and education only, not an appraisal."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Chase Builds" }]
+dependencies = ["numpy>=1.26", "pandas>=2.1", "openpyxl>=3.1"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6", "mypy>=1.10", "pandas-stubs", "types-openpyxl"]
+
+[project.scripts]
+csg = "comparable_sales_grid.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.coverage.run]
+source = ["comparable_sales_grid"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.mypy]
+files = ["src"]
+python_version = "3.11"
+strict = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "benchmark"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501"]

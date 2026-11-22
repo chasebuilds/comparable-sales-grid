@@ -1,0 +1,65 @@
+{
+  "n_subjects": 200,
+  "n_sales": 3000,
+  "methods": {
+    "regression": {
+      "median_abs_pct_error": 2.051344118678222,
+      "mean_abs_pct_error": 2.2647371761305832,
+      "share_within_5pct": 93.0,
+      "share_within_10pct": 100.0,
+      "bias_pct": -0.49303373441441534,
+      "truth_inside_range_pct": 91.0,
+      "mean_comps_used": 4.815,
+      "subjects_with_flagged_comp_pct": 24.0,
+      "baseline_time_adjusted_median_only": {
+        "median_abs_pct_error": 4.758207830322031,
+        "mean_abs_pct_error": 6.13142108585273,
+        "share_within_5pct": 50.5,
+        "share_within_10pct": 80.0,
+        "bias_pct": 1.4197497372983838
+      },
+      "reference_direct_regression_prediction": {
+        "median_abs_pct_error": 1.4752006133240458,
+        "mean_abs_pct_error": 1.6582598537911502,
+        "share_within_5pct": 98.0,
+        "share_within_10pct": 100.0,
+        "bias_pct": -0.8906317131110604
+      }
+    },
+    "paired": {
+      "median_abs_pct_error": 2.5415444925424024,
+      "mean_abs_pct_error": 2.896058118396018,
+      "share_within_5pct": 83.0,
+      "share_within_10pct": 99.5,
+      "bias_pct": -0.7311246954102648,
+      "truth_inside_range_pct": 77.5,
+      "mean_comps_used": 3.985,
+      "subjects_with_flagged_comp_pct": 47.0,
+      "baseline_time_adjusted_median_only": {
+        "median_abs_pct_error": 5.611869830809818,
+        "mean_abs_pct_error": 7.277354473941386,
+        "share_within_5pct": 45.0,
+        "share_within_10pct": 72.0,
+        "bias_pct": 1.905467405240848
+      }
+    },
+    "blend": {
+      "median_abs_pct_error": 2.085645059538116,
+      "mean_abs_pct_error": 2.433337591284176,
+      "share_within_5pct": 90.5,
+      "share_within_10pct": 100.0,
+      "bias_pct": -0.6005107029186857,
+      "truth_inside_range_pct": 82.5,
+      "mean_comps_used": 4.36,
+      "subjects_with_flagged_comp_pct": 35.0,
+      "baseline_time_adjusted_median_only": {
+        "median_abs_pct_error": 5.095864172444925,
+        "mean_abs_pct_error": 6.484306763458244,
+        "share_within_5pct": 49.5,
+        "share_within_10pct": 78.0,
+        "bias_pct": 1.4564681917198001
+      }
+    }
+  },
+  "valuation_month_index": 36
+}

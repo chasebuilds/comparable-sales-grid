@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Comparable Sales Grid</title>
+<meta name="description" content="Sales comparison approach as a tool. Pick a synthetic subject and see the comps, adjustments and reconciled value. Not an appraisal.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --wall: #cdb9a3; --wall-2: #e9ddcf; --wood: #6b4a33; --wood-2: #8a6447; --floor: #b89a80; --glow: #fff6e6; --leaf: #6f7f52;
+  --ink: #2a2019; --ink-2: rgba(42,32,25,.68); --ink-3: rgba(42,32,25,.42);
+  --glass: rgba(255,250,244,.22); --glass-edge: rgba(255,255,255,.55); --card: rgba(255,252,248,.55); --card-hi: rgba(255,255,255,.8);
+  --shadow: rgba(70,40,20,.22); --me: #e2583a; --good: #1f9a72; --good-bg: rgba(31,154,114,.14);
+  --bad: #c8452c; --bad-bg: rgba(226,88,58,.14); --warn: #a8670f; --warn-bg: rgba(200,130,20,.16);
+  --solid: #2a2019; --solid-fg: #fbf5ee;
+  --f-ui: "Onest","Segoe UI",system-ui,sans-serif; --f-num: "Geist Mono",ui-monospace,"Cascadia Mono",monospace;
+  --r-lg: 28px; --r-md: 18px; --r-pill: 999px;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --wall: #2a1f19; --wall-2: #3b2c22; --wood: #1d140e; --wood-2: #33241a; --floor: #241a14; --glow: #ffb867; --leaf: #2f3a24;
+  --ink: #f6ece2; --ink-2: rgba(246,236,226,.72); --ink-3: rgba(246,236,226,.42);
+  --glass: rgba(34,24,18,.34); --glass-edge: rgba(255,255,255,.14); --card: rgba(48,36,28,.58); --card-hi: rgba(70,54,42,.78);
+  --shadow: rgba(0,0,0,.45); --me: #ff7a55; --good: #4fd1a1; --good-bg: rgba(79,209,161,.14);
+  --bad: #ff8a6a; --bad-bg: rgba(255,122,85,.16); --warn: #f0b45a; --warn-bg: rgba(240,180,90,.16);
+  --solid: #f6ece2; --solid-fg: #2a2019; color-scheme: dark } }
+* { box-sizing: border-box }
+body { margin: 0; background: var(--wall); color: var(--ink); font: 14px/1.5 var(--f-ui); -webkit-font-smoothing: antialiased }
+.num { font-family: var(--f-num); font-variant-numeric: tabular-nums; letter-spacing: -.02em }
+.room { position: fixed; inset: 0; z-index: 0; overflow: hidden;
+  background: radial-gradient(60% 50% at 78% 18%, var(--glow), transparent 70%), linear-gradient(180deg, var(--wall-2) 0%, var(--wall) 62%, var(--floor) 62.2%, var(--floor) 100%) }
+.room i { position: absolute; display: block }
+.room .panel { left: 0; top: 0; width: 13%; height: 70%; background: repeating-linear-gradient(90deg, var(--wood) 0 18px, var(--wood-2) 18px 22px) }
+.room .window { right: 9%; top: 11%; width: 24%; height: 34%; border-radius: 4px; background: linear-gradient(160deg, var(--glow), var(--wall-2)); opacity: .9 }
+.room .plant { right: 2%; bottom: 14%; width: 120px; height: 240px; border-radius: 60px 60px 20px 20px; background: radial-gradient(ellipse at 50% 30%, var(--leaf), transparent 70%) }
+.glass { background: var(--glass); -webkit-backdrop-filter: blur(26px) saturate(150%); backdrop-filter: blur(26px) saturate(150%);
+  border: 1px solid var(--glass-edge); box-shadow: inset 0 1px 0 var(--glass-edge), 0 24px 60px -20px var(--shadow) }
+.card { background: var(--card); border: 1px solid var(--glass-edge); border-radius: var(--r-md); box-shadow: inset 0 1px 0 var(--glass-edge) }
+.app { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px;
+  padding: 18px 16px 110px }
+.bar { display: flex; align-items: center; gap: 12px; padding: 7px 10px; border-radius: var(--r-pill) }
+.who { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 13px; white-space: nowrap }
+.who b { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--solid); color: var(--solid-fg); font-size: 11px }
+.mid { flex: 1; min-width: 0; padding: 7px 14px; border-radius: var(--r-pill); background: var(--card); font-size: 13px; color: var(--ink-2); overflow: hidden; white-space: nowrap; text-overflow: ellipsis }
+.chip { font-size: 12px; padding: 6px 12px; border-radius: var(--r-pill); background: var(--card); white-space: nowrap; color: var(--ink-2) }
+.stage { border-radius: var(--r-lg); padding: clamp(16px, 3vw, 28px); min-height: 60vh }
+.warn { background: var(--warn-bg); color: var(--ink); border: 1px solid var(--warn); border-radius: 12px; padding: 8px 12px; font-size: 13px; margin-bottom: 16px }
+h1 { margin: 0 0 4px; font-size: clamp(24px, 3.4vw, 32px); font-weight: 600; letter-spacing: -.025em }
+.sub { margin: 0 0 16px; color: var(--ink-2); max-width: 68ch }
+.view { display: flex; flex-direction: column; gap: 14px; animation: unfrost .4s cubic-bezier(.2,.8,.2,1) both }
+@keyframes unfrost { from { filter: blur(12px); opacity: .25 } to { filter: none; opacity: 1 } }
+.picker { display: flex; flex-wrap: wrap; gap: 10px; align-items: center }
+.picker label { color: var(--ink-2); font-size: 12px }
+select { font: inherit; padding: 8px 14px; border-radius: var(--r-pill); border: 1px solid var(--glass-edge); background: var(--card-hi); color: var(--ink) }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px }
+.tile { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0 }
+.tile .lbl { font-size: 12px; color: var(--ink-2) }
+.tile .big { font-size: 26px; font-weight: 500 }
+.tile.solid { background: var(--solid); color: var(--solid-fg); border-color: transparent }
+.tile.solid .lbl { color: inherit; opacity: .75 }
+.note { font-size: 12px; color: var(--ink-2) }
+.pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: var(--r-pill); white-space: nowrap }
+.pill.good { background: var(--good-bg); color: var(--good) }
+.pill.bad { background: var(--bad-bg); color: var(--bad) }
+.pill.warn { background: var(--warn-bg); color: var(--warn) }
+.scroll { overflow-x: auto; padding: 4px 0 }
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px }
+th { text-align: right; font-weight: 600; font-size: 12px; padding: 8px 10px; white-space: nowrap }
+th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: var(--card-hi); z-index: 1 }
+td { padding: 8px 10px; border-top: 1px solid var(--glass-edge); text-align: right; vertical-align: top }
+tr.sec td { font-weight: 600; background: var(--card); text-align: left }
+tr.strong td { font-weight: 600 }
+td.neg { color: var(--bad) } td.pos { color: var(--good) }
+td.why { font-size: 12px; text-align: left; color: var(--ink-2); min-width: 150px }
+.panel-card { padding: 16px 18px }
+.panel-card h2 { margin: 0 0 8px; font-size: 15px; font-weight: 600 }
+.panel-card p { margin: 0 0 10px; max-width: 70ch }
+.dock { position: fixed; z-index: 5; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex; gap: 4px; padding: 6px; border-radius: var(--r-pill); max-width: calc(100vw - 24px) }
+.dock button { font: inherit; font-size: 13px; font-weight: 500; color: var(--ink-2); background: transparent; border: 0; padding: 9px 16px; border-radius: var(--r-pill); cursor: pointer; white-space: nowrap }
+.dock button:hover { color: var(--ink) }
+.dock button[aria-current="page"] { background: var(--card-hi); color: var(--ink); box-shadow: 0 4px 14px -6px var(--shadow) }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--me); outline-offset: 2px }
+a { color: var(--me) }
+@media (prefers-reduced-motion: reduce) { .view { animation: none } }
+@media (max-width: 860px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)) } .chip { display: none } }
+@media (max-width: 520px) { .who span { display: none } .tile .big { font-size: 21px } }
+</style>
+</head>
+<body>
+<div class="room" aria-hidden="true"><i class="panel"></i><i class="window"></i><i class="plant"></i></div>
+<div class="app">
+  <header class="bar glass">
+    <div class="who"><b>CB</b><span>Chase Builds</span></div>
+    <div class="mid">Sales comparison approach on a synthetic market</div>
+    <span class="chip" id="chip">loading</span>
+  </header>
+  <main class="stage glass" id="stage"><p>Loading sample market...</p></main>
+</div>
+<nav class="dock glass" aria-label="Views">
+  <button type="button" data-view="grid" aria-current="page">Grid</button>
+  <button type="button" data-view="evidence">Evidence</button>
+  <button type="button" data-view="about">About</button>
+</nav>
+<script src="app.js"></script>
+</body>
+</html>
