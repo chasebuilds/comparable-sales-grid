@@ -124,7 +124,7 @@ def test_html_has_disclaimer_and_flags(market, mm):  # type: ignore[no-untyped-d
     page = render_html(r, mm)
     assert "USPAP-compliant appraisal" in page
     assert "Indicated value" in page
-    assert "—" not in page
+    assert chr(0x2014) not in page
 
 
 def test_cli_roundtrip(tmp_path: Path):
