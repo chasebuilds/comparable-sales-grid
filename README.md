@@ -2,13 +2,15 @@
 
 [![ci](https://github.com/chasebuilds/comparable-sales-grid/actions/workflows/ci.yml/badge.svg)](https://github.com/chasebuilds/comparable-sales-grid/actions/workflows/ci.yml)
 
-The sales comparison approach as a tool. Give it a subject property and a file of sales. It searches for comparable sales, picks 3 to 6, adjusts each one line by line using rates measured from the sales file, and reconciles to a weighted value and a range. Output is an Excel workbook and a printable HTML page.
+**Turn a file of home sales into a defensible comparable sales grid in seconds.** Give it a subject property and a sales CSV. It finds the comps, measures the adjustments from your own data, flags the ones that break the 15% net / 25% gross guidelines, and writes an Excel workbook and a printable page with the weighted value and range.
 
-**Live demo:** https://chasebuilds.github.io/comparable-sales-grid/ (pick a synthetic subject, see the grid)
+**Try it:** https://chasebuilds.github.io/comparable-sales-grid/ (pick a synthetic subject, see the whole grid)
 
-> **Not an appraisal.** This is an analysis and education tool. A USPAP-compliant appraisal requires a licensed or certified appraiser. All sample data is synthetic.
+> **Not an appraisal.** Analysis and education tool. A USPAP-compliant appraisal requires a licensed or certified appraiser. All sample data is synthetic.
 
 ![Grid for a synthetic subject](docs/screenshot.jpg)
+
+On 200 synthetic subjects the reconciled value had a median error of 2.05% against the known truth, with 93.0% within 5% and 100.0% within 10% (details in [Benchmark](#benchmark)).
 
 ## What it does
 
@@ -23,12 +25,21 @@ The sales comparison approach as a tool. Give it a subject property and a file o
 5. **Selection.** From the 20 most similar candidates, comps inside the guidelines are ranked by gross adjustment and the best 3 to 6 are kept, each with a plain-text reason. If fewer than 3 pass, the best remaining are added and flagged.
 6. **Reconciliation.** Weights are the inverse of each comp's gross adjustment percent (floor 3%). Output is the weighted indicated value and the low/high range of the adjusted comps.
 
+## Analyst controls and checks
+
+- **Pin or drop comps.** `--include S01,S02,S03` fixes the comps (3 to 6, any distance or age) and skips automatic selection. `--exclude S09` removes a sale you know was not at arm length. Bad ids, wrong counts and pinned sales dated after the valuation date are rejected with a plain message.
+- **Leave-one-out.** The indicated value is recomputed without each comp in turn, so you can see how much one sale drives the answer.
+- **Bracketing.** For each feature, whether the subject sits inside the comps' range. Subjects outside it lean on extrapolated adjustments.
+- **Batch summary.** `csg batch` writes one CSV row per subject (value, range, comps used, flagged comps, bracketing, leave-one-out spread, and error if truth is present). On the sample 200: 41% of subjects are bracketed on every feature, and the median leave-one-out spread is 2.76% of the value.
+
 ## Use it
 
 ```
 pip install -e ".[dev]"
 csg generate                       # writes data/sales.csv and data/subjects.csv (seeded, synthetic)
 csg run --sales data/sales.csv --subjects data/subjects.csv --subject-id P0012 --out out
+csg run ... --include S00012,S00450,S01200   # pin your own comps
+csg batch --sales data/sales.csv --subjects data/subjects.csv   # summary CSV for all subjects
 csg benchmark --sales data/sales.csv --subjects data/subjects.csv
 csg demo-data --sales data/sales.csv --subjects data/subjects.csv   # rebuilds web/data.json
 ```
@@ -51,7 +62,7 @@ Context from the same run: time-adjusting the chosen comps with no line adjustme
 
 ## Tests and checks
 
-`pytest` (13 tests: seeded data, recovery of true rates, grid rules, workbook formulas, HTML, CLI, benchmark), `ruff`, and `mypy --strict` all run in CI on Python 3.11 and 3.13.
+`pytest` (21 tests: seeded data, recovery of true rates, grid rules, pinned and excluded comps, bracketing, leave-one-out, batch, workbook formulas, HTML, CLI, benchmark), `ruff`, and `mypy --strict` all run in CI on Python 3.11 and 3.13.
 
 ## Limitations
 

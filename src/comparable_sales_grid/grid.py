@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
@@ -148,6 +149,9 @@ class GridResult:
     range_low: float = 0.0
     range_high: float = 0.0
     n_candidates: int = 0
+    bracketing: dict[str, bool] = field(default_factory=dict)
+    leave_one_out: list[float] = field(default_factory=list)
+    loo_spread_pct: float = 0.0
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -204,8 +208,14 @@ def appraise_subject(
     *,
     radius_km: float = 6.0,
     lookback_months: int = 12,
+    include_ids: Sequence[str] = (),
+    exclude_ids: Sequence[str] = (),
 ) -> GridResult:
-    """Run the full sales-comparison workflow for one subject."""
+    """Run the full sales-comparison workflow for one subject.
+
+    include_ids pins the comps (3 to 6 sale ids, any distance or age). exclude_ids drops sales
+    from the search, for example a sale the analyst knows was not at arm length.
+    """
     notes: list[str] = []
     sales = mm.sales
     smonth = months_since_base(sales["sale_date"])
@@ -223,10 +233,23 @@ def appraise_subject(
     if keep.sum() < MIN_COMPS:
         keep = (ago >= 0) & (dist <= radius_km * 2)
         notes.append("Widened radius to double the default.")
+    ids = sales["sale_id"].astype(str).to_numpy()
+    if exclude_ids:
+        keep &= ~np.isin(ids, list(exclude_ids))
+    if include_ids:
+        unknown = set(include_ids) - set(ids)
+        if unknown:
+            raise ValueError(f"unknown sale ids: {sorted(unknown)}")
+        if not MIN_COMPS <= len(set(include_ids)) <= MAX_COMPS:
+            raise ValueError(f"pin between {MIN_COMPS} and {MAX_COMPS} comps")
+        pinned = np.isin(ids, list(include_ids))
+        if (pinned & (ago < 0)).any():
+            raise ValueError("a pinned sale is dated after the valuation date")
+        keep = pinned
     cand = sales[keep].reset_index(drop=True)
     c_dist, c_ago = dist[keep], ago[keep]
     sim = _similarity(subject, cand, c_dist, c_ago)
-    order = np.argsort(-sim)[:POOL]
+    order = np.argsort(-sim)[: len(cand) if include_ids else POOL]
 
     v_idx = mm.model.log_index(mm.valuation_month)
     rows: list[CompRow] = []
@@ -267,10 +290,12 @@ def appraise_subject(
                 adjusted_price=base + net,
             )
         )
+    if include_ids:
+        notes.append("Comps were chosen by the analyst; automatic selection was skipped.")
     passing = sorted((r for r in rows if not r.flags), key=lambda r: r.gross_pct)
     failing = sorted((r for r in rows if r.flags), key=lambda r: r.gross_pct)
-    chosen = passing[:MAX_COMPS]
-    if len(chosen) < MIN_COMPS:
+    chosen = list(rows) if include_ids else passing[:MAX_COMPS]
+    if len(chosen) < MIN_COMPS and not include_ids:
         chosen += failing[: MIN_COMPS - len(chosen)]
         notes.append(
             "Fewer than 3 comps passed the 15% net / 25% gross guidelines; best remaining were added and flagged."
@@ -282,15 +307,27 @@ def appraise_subject(
         r.weight = float(wi)
         r.reason = _reason(subject, r)
     adjusted = np.array([r.adjusted_price for r in chosen])
+    indicated = float(adjusted @ w)
+    bracketing = {}
+    for a in ATTRS:
+        vals = [r.attrs[a] for r in chosen]
+        bracketing[a] = min(vals) <= float(subject[a]) <= max(vals)
+    loo = []
+    for k in range(len(chosen)):
+        rest = np.delete(inv, k)
+        loo.append(float(np.delete(adjusted, k) @ (rest / rest.sum())))
     return GridResult(
         subject={str(k): (v.item() if hasattr(v, "item") else v) for k, v in subject.items()},
         valuation_date=mm.valuation_date,
         comps=chosen,
         candidates=[r for r in rows if r not in chosen],
-        indicated_value=float(adjusted @ w),
+        indicated_value=indicated,
         range_low=float(adjusted.min()),
         range_high=float(adjusted.max()),
         n_candidates=int(keep.sum()),
+        bracketing=bracketing,
+        leave_one_out=loo,
+        loo_spread_pct=(max(loo) - min(loo)) / indicated,
         notes=notes,
     )
 

@@ -46,6 +46,26 @@ def demo_payload(mm: MarketModel, subjects: pd.DataFrame) -> dict[str, Any]:
     }
 
 
+def batch_summary(mm: MarketModel, subjects: pd.DataFrame) -> pd.DataFrame:
+    rows = []
+    for _, s in subjects.iterrows():
+        r = appraise_subject(mm, s)
+        row: dict[str, Any] = {
+            "subject_id": s["subject_id"],
+            "indicated_value": round(r.indicated_value, -2),
+            "range_low": round(r.range_low),
+            "range_high": round(r.range_high),
+            "comps_used": len(r.comps),
+            "comps_flagged": sum(1 for c in r.comps if c.flags),
+            "all_features_bracketed": all(r.bracketing.values()),
+            "loo_spread_pct": round(r.loo_spread_pct * 100, 2),
+        }
+        if "true_value" in subjects.columns:
+            row["error_pct"] = round((r.indicated_value / float(s["true_value"]) - 1) * 100, 2)
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="csg", description=DISCLAIMER)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -63,6 +83,17 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--valuation-date", default=VALUATION_DATE)
     r.add_argument("--method", choices=("regression", "paired", "blend"), default="regression")
     r.add_argument("--out", type=Path, default=Path("out"))
+    r.add_argument(
+        "--include", default="", help="comma list of sale ids to pin as the comps (3 to 6)"
+    )
+    r.add_argument("--exclude", default="", help="comma list of sale ids to drop from the search")
+
+    bt = sub.add_parser("batch", help="one summary row per subject (CSV)")
+    bt.add_argument("--sales", type=Path, required=True)
+    bt.add_argument("--subjects", type=Path, required=True)
+    bt.add_argument("--valuation-date", default=VALUATION_DATE)
+    bt.add_argument("--method", choices=("regression", "paired", "blend"), default="regression")
+    bt.add_argument("--out", type=Path, default=Path("out/summary.csv"))
 
     b = sub.add_parser("benchmark", help="error vs known truth for every subject")
     b.add_argument("--sales", type=Path, required=True)
@@ -93,7 +124,15 @@ def main(argv: list[str] | None = None) -> int:
         hit = subjects[subjects["subject_id"] == a.subject_id]
         if hit.empty:
             raise SystemExit(f"subject {a.subject_id} not found")
-        res = appraise_subject(mm, hit.iloc[0])
+        try:
+            res = appraise_subject(
+                mm,
+                hit.iloc[0],
+                include_ids=[x for x in a.include.split(",") if x],
+                exclude_ids=[x for x in a.exclude.split(",") if x],
+            )
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
         a.out.mkdir(parents=True, exist_ok=True)
         write_workbook(res, mm, a.out / f"{a.subject_id}.xlsx")
         (a.out / f"{a.subject_id}.html").write_text(render_html(res, mm), encoding="utf-8")
@@ -101,6 +140,13 @@ def main(argv: list[str] | None = None) -> int:
             f"indicated value {res.indicated_value:,.0f}; range {res.range_low:,.0f} to {res.range_high:,.0f}"
         )
         print(f"wrote {a.out / (a.subject_id + '.xlsx')} and .html")
+        return 0
+    if a.cmd == "batch":
+        bm = build_market_model(sales, a.valuation_date, a.method)
+        a.out.parent.mkdir(parents=True, exist_ok=True)
+        summary = batch_summary(bm, subjects)
+        summary.to_csv(a.out, index=False)
+        print(f"wrote {len(summary)} rows to {a.out}")
         return 0
     if a.cmd == "benchmark":
         bench = run_benchmark(sales, subjects, a.valuation_date)

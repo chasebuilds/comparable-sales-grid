@@ -166,3 +166,74 @@ def test_benchmark_small(market):  # type: ignore[no-untyped-def]
     ref = b["methods"]["regression"]["reference_direct_regression_prediction"]
     assert ref["median_abs_pct_error"] < 10
     assert "Median abs % error" in to_markdown(b)
+
+
+def test_bracketing_and_leave_one_out(market, mm):  # type: ignore[no-untyped-def]
+    r = appraise_subject(mm, market.subjects.iloc[2])
+    assert set(r.bracketing) == set(ATTRS)
+    vals = [c.attrs["gla"] for c in r.comps]
+    subj_gla = float(market.subjects.iloc[2]["gla"])
+    assert r.bracketing["gla"] == (min(vals) <= subj_gla <= max(vals))
+    assert len(r.leave_one_out) == len(r.comps)
+    assert r.loo_spread_pct == pytest.approx(
+        (max(r.leave_one_out) - min(r.leave_one_out)) / r.indicated_value
+    )
+    assert r.loo_spread_pct < 0.2
+
+
+def test_pin_comps(market, mm):  # type: ignore[no-untyped-def]
+    base = appraise_subject(mm, market.subjects.iloc[3])
+    ids = [c.sale_id for c in base.comps[:3]]
+    r = appraise_subject(mm, market.subjects.iloc[3], include_ids=ids)
+    assert sorted(c.sale_id for c in r.comps) == sorted(ids)
+    assert any("analyst" in n for n in r.notes)
+    assert sum(c.weight for c in r.comps) == pytest.approx(1.0)
+
+
+def test_pin_validation(market, mm):  # type: ignore[no-untyped-def]
+    s = market.subjects.iloc[0]
+    with pytest.raises(ValueError, match="unknown"):
+        appraise_subject(mm, s, include_ids=["nope", "x", "y"])
+    ids = list(market.sales["sale_id"].astype(str).head(2))
+    with pytest.raises(ValueError, match="between"):
+        appraise_subject(mm, s, include_ids=ids)
+
+
+def test_pin_rejects_future_sale(market, mm):  # type: ignore[no-untyped-def]
+    s = market.subjects.iloc[0]
+    sales = market.sales.copy()
+    sales.loc[:2, "sale_date"] = "2026-12-15"
+    mm2 = build_market_model(sales, market.valuation_date)
+    ids = list(sales["sale_id"].astype(str).head(3))
+    with pytest.raises(ValueError, match="after the valuation"):
+        appraise_subject(mm2, s, include_ids=ids)
+
+
+def test_exclude_removes_sale(market, mm):  # type: ignore[no-untyped-def]
+    s = market.subjects.iloc[4]
+    base = appraise_subject(mm, s)
+    gone = base.comps[0].sale_id
+    r = appraise_subject(mm, s, exclude_ids=[gone])
+    assert gone not in {c.sale_id for c in [*r.comps, *r.candidates]}
+
+
+def test_batch_summary(market, mm):  # type: ignore[no-untyped-def]
+    df = cli.batch_summary(mm, market.subjects.head(4))
+    assert len(df) == 4
+    assert {"indicated_value", "loo_spread_pct", "error_pct", "all_features_bracketed"} <= set(
+        df.columns
+    )
+
+
+def test_cli_batch_and_pin(tmp_path: Path):
+    cli.main(["generate", "--out", str(tmp_path), "--sales", "800", "--subjects", "5"])
+    s, p = str(tmp_path / "sales.csv"), str(tmp_path / "subjects.csv")
+    assert cli.main(["batch", "--sales", s, "--subjects", p, "--out", str(tmp_path / "b.csv")]) == 0
+    assert len(pd.read_csv(tmp_path / "b.csv")) == 5
+    with pytest.raises(SystemExit):
+        cli.main(["run", "--sales", s, "--subjects", p, "--subject-id", "P0001", "--include", "zz"])
+
+
+def test_html_mentions_bracketing(market, mm):  # type: ignore[no-untyped-def]
+    page = render_html(appraise_subject(mm, market.subjects.iloc[0]), mm)
+    assert "Leave-one-out" in page and "Not bracketed" in page

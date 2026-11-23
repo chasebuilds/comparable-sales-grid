@@ -125,6 +125,16 @@ def write_workbook(result: GridResult, mm: MarketModel, path: Path) -> None:
         column=1,
         value="Flag rules: net over 15% or gross over 25% of the time-adjusted price.",
     )
+    ws.cell(row=r + 4, column=1, value="Leave-one-out spread (indicated value without each comp)")
+    ws.cell(row=r + 4, column=3, value=f"{result.loo_spread_pct:.1%} of indicated value")
+    ws.cell(row=r + 5, column=1, value="Bracketing (subject inside the comps' range)")
+    ws.cell(
+        row=r + 5,
+        column=3,
+        value="; ".join(
+            f"{LINE_LABELS[k]}: {'yes' if v else 'NO'}" for k, v in result.bracketing.items()
+        ),
+    )
     ws.column_dimensions["A"].width = 40
     for j in range(2, 3 + n):
         ws.column_dimensions[get_column_letter(j)].width = 22
@@ -307,6 +317,8 @@ th:first-child{{text-align:left;width:190px}} thead th{{background:#2a2019;color
 <table><thead><tr><th>Item</th><th>Subject</th>{head}</tr></thead><tbody>{"".join(body)}</tbody></table>
 <p class="big">Indicated value {_money(round(result.indicated_value, -2))}
 <span style="font-weight:400;font-size:14px"> range {_money(result.range_low)} to {_money(result.range_high)}</span></p>
+<p>Leave-one-out: dropping any single comp moves the indicated value by up to {result.loo_spread_pct:.1%} across the cases.
+Not bracketed by the comps: {e(", ".join(LINE_LABELS[k] for k, v in result.bracketing.items() if not v) or "none")}.</p>
 <p>Weights are the inverse of each comp's gross adjustment percent (floor 3%). Flag rules: net over 15% or gross over 25% of the time-adjusted price.
 {e(" ".join(result.notes))}</p>
 <h2>Adjustment evidence</h2>

@@ -57,6 +57,9 @@ function gridView() {
       <div class="card tile"><span class="lbl">Error vs truth</span><span class="big num">${pct(err, true)}</span><span class="pill ${inRange ? "good" : "warn"}">${inRange ? "truth inside range" : "truth outside range"}</span></div>
     </div>
     <div class="card scroll"><table><thead><tr><th>Item</th><th>Subject</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="card panel-card"><h2>Checks an appraiser would make</h2>
+      <p><b>Leave-one-out:</b> dropping any single comp moves the indicated value by up to ${pct(s.loo_spread_pct)} across the cases (${s.leave_one_out.map(money).join(", ")}).</p>
+      <p><b>Bracketing:</b> ${Object.entries(s.bracketing).map(([k, v]) => `<span class="pill ${v ? "good" : "warn"}">${LABELS[k]}: ${v ? "bracketed" : "not bracketed"}</span>`).join(" ")}</p></div>
     <p class="note">Weights are the inverse of each comp's gross adjustment percent (floor 3%). Percentages are of the time-adjusted price.</p>
   </div>`;
 }
